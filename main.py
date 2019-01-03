@@ -44,13 +44,6 @@ class Board():
                 return True
         return False
     
-    #def GetBox(self, colNum, rowNum):
-    #    """
-    #    Boxes are labeled row by row (starting at top), left to right
-    #    Returns which box location is in; used as a helper function by self.InBox()
-    #    """
-    #    return (1 + ((rowNum // 3) * 3) + (colNum // 3))
-    
     def MinBoxValues(self, rowNum, colNum):
         """
         Return the indicies of the top left corner of the given square
@@ -74,10 +67,45 @@ class Board():
         """Check all three ways, return True if value is NOT in row, column, or box"""
         return (not (self.InRow(value, rowNum) or self.InCol(value, colNum) or  self.InBox(value, rowNum, colNum)))
 
-    def IsSolved(self):
+    def SeemsSolved(self):
+        """Just a quick check to see if solved"""
         for row in self.tiles:
             if (sum(row) != 45):
                 return False
+        return True
+    
+    def VerifySolved(self):
+        """Robust check for sudoku board properties. To be used if SeemsSolved passes"""
+        
+        # Check value appears exactly once in each row
+        for row in self.tiles:
+            vals = list(range(1,10))
+            for i in row:
+                try:
+                    vals.remove(i)
+                except:
+                    return False
+                
+        # Check value appears exactly once in each column
+        for col in self.tiles.T:
+            vals = list(range(1,10))
+            for i in col:
+                try:
+                    vals.remove(i)
+                except:
+                    return False
+        
+        # Check value appears exactly once in each box
+        for a in range(0, 9, 3):
+            for b in range(0, 9, 3):
+                box = self.tiles[a:a+3,b:b+3]
+                vals = list(range(1,10))
+                for i in box.flatten():
+                    try:
+                        vals.remove(i)
+                    except:
+                        return False
+        # If we get here, everything is okay!
         return True
     
     def Complete8Rows(self):
@@ -181,7 +209,7 @@ class Board():
                 for i in box.flatten():
                     if i == 0:
                         continue
-                    elif i in tempList:
+                    elif i in tempList: # Found twice in one box!
                         return True
                     else: # i not found already
                         tempList.append(i)
@@ -216,6 +244,12 @@ def Solve(board):
         if board.ContradictionExists():
             returnDict["Contradictions"] = 1
             return returnDict
+        
+        if board.SeemsSolved():
+            if board.VerifySolved():
+                returnDict["Sols"] = 1
+                returnDict["Board"] = board
+                return returnDict
 
         rowNum = 0
         for row in board.tiles:
@@ -255,10 +289,11 @@ def Solve(board):
             returnDict["Contradictions"] = 1
             return returnDict
             
-        if board.IsSolved():
-            returnDict["Sols"] = 1
-            returnDict["Board"] = board
-            return returnDict
+        if board.SeemsSolved():
+            if board.VerifySolved():
+                returnDict["Sols"] = 1
+                returnDict["Board"] = board
+                return returnDict
     
     # After brute forcing each value, if board hasn't changed, branch and recurse
     # FIXME - Optimize this (len potential guesses, closest to center/furthest from center of other points)
@@ -308,19 +343,28 @@ def main(args = sys.argv):
             return 2
 
         try:
-            l = list(map(int, l))
+            vals = []
+            for i in l:
+                if i == '':
+                    vals.append(0)
+                elif (int(i) < 0) or (int(i) > 9):
+                    print("All elements must be an integer between 1 and 9, or a 0 or blank to represent unknown values. An error occured in row %d: %s" %  (lineNum, i))
+                    return 2
+                else:
+                    vals.append(int(i))
         except:
             print("Each element must be an integer. Enter 0 for unfilled boxes. Error in row %d" % lineNum)
             return 2
 
-        rows.append(l)
+        rows.append(vals)
         lineNum += 1
 
     if lineNum != 10:
         print("Your file must have exactly 9 rows. Yours had %d" % lineNum-1)
         return 2
-
+    
     f.close()
+    
 
     board = np.array(rows)
     boardObject = Board(board)
